@@ -1,0 +1,348 @@
+Perfect bhai 🔥 ab main tujhe clean, optimized, production-ready code de raha hoon (TS + HTML + fixes + UX) — direct use kar sakta hai ✅
+
+
+---
+
+🚀 1. COPY TEMPLATE DIALOG (CONFIG SCREEN)
+
+✅ copy-template-dialog.component.ts
+
+import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { StaticDataService } from '@api/referential';
+
+@Component({
+  selector: 'app-copy-template-dialog',
+  templateUrl: './copy-template-dialog.component.html',
+  styleUrls: ['./copy-template-dialog.component.scss']
+})
+export class CopyTemplateDialogComponent implements OnInit {
+
+  @Input() visible = false;
+  @Output() visibleChange = new EventEmitter<boolean>();
+  @Output() confirm = new EventEmitter<any>();
+
+  form: FormGroup;
+
+  availableFields: Array<{ label: string; value: string }> = [];
+
+  constructor(
+    private fb: FormBuilder,
+    private staticDataService: StaticDataService
+  ) {
+    this.form = this.fb.group({
+      copyCount: [1, [Validators.required, Validators.min(1)]],
+      fields: [[], Validators.required]
+    });
+  }
+
+  ngOnInit(): void {
+    this.fetchAvailableFields();
+  }
+
+  fetchAvailableFields(): void {
+    const branchCode = '30004';
+    const countryCode = 'FR';
+
+    this.staticDataService.getInstructionSheetParamList(branchCode, countryCode)
+      .subscribe({
+        next: (response: any[]) => {
+          this.availableFields = response.map(field => ({
+            label: field.param,
+            value: field.columnName
+          }));
+        },
+        error: () => {
+          this.availableFields = [{ label: 'None', value: 'none' }];
+        }
+      });
+  }
+
+  onConfirm(): void {
+    if (this.form.valid) {
+      const selectedFields = [...new Set(this.form.value.fields)]; // prevent duplicate
+
+      this.confirm.emit({
+        copyCount: this.form.value.copyCount,
+        selectedFields
+      });
+
+      this.close();
+    }
+  }
+
+  close(): void {
+    this.visible = false;
+    this.visibleChange.emit(false);
+  }
+}
+
+
+---
+
+✅ copy-template-dialog.component.html
+
+<p-dialog header="Copy"
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{ width: '600px' }">
+
+  <form [formGroup]="form" class="p-fluid">
+
+    <div class="field">
+      <label>Number of Copies</label>
+      <input type="number" pInputText formControlName="copyCount" min="1" />
+    </div>
+
+    <div class="field">
+      <label>Select Fields</label>
+      <p-multiSelect
+        [options]="availableFields"
+        formControlName="fields"
+        optionLabel="label"
+        optionValue="value"
+        [filter]="true"
+        [showClear]="true"
+        placeholder="Select fields"
+        appendTo="body">
+      </p-multiSelect>
+    </div>
+
+  </form>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel" class="p-button-text" (click)="close()"></button>
+    <button pButton label="Confirm" class="p-button-success"
+      (click)="onConfirm()"
+      [disabled]="!form.valid">
+    </button>
+  </ng-template>
+
+</p-dialog>
+
+
+---
+
+🚀 2. COPY CONFIRMATION DIALOG (TABLE SCREEN)
+
+✅ copy-confirmation-dialog.component.ts
+
+import { Component, Input, Output, EventEmitter, OnChanges } from '@angular/core';
+import { RequestService } from '@api/controller';
+
+@Component({
+  selector: 'app-copy-confirmation-dialog',
+  templateUrl: './copy-confirmation-dialog.component.html',
+  styleUrls: ['./copy-confirmation-dialog.component.scss']
+})
+export class CopyConfirmationDialogComponent implements OnChanges {
+
+  @Input() visible = false;
+  @Input() selectedFields: string[] = [];
+  @Input() copyCount = 0;
+
+  @Output() visibleChange = new EventEmitter<boolean>();
+  @Output() back = new EventEmitter<void>();
+
+  tableData: any[] = [];
+
+  branchCode = '30004';
+  countryCode = 'FR';
+  bnppuid = 'tech001';
+
+  constructor(private requestService: RequestService) {}
+
+  ngOnChanges(): void {
+    if (this.visible) {
+      this.initializeTable();
+    }
+  }
+
+  initializeTable(): void {
+    this.tableData = Array.from({ length: this.copyCount }, (_, index) => {
+      const row: any = {
+        id: index + 1,
+        requestName: `Request ${index + 1}`
+      };
+
+      this.selectedFields.forEach(field => row[field] = '');
+      return row;
+    });
+  }
+
+  isFormValid(): boolean {
+    return this.tableData.every(row =>
+      this.selectedFields.every(field => row[field])
+    );
+  }
+
+  deleteRequest(index: number): void {
+    if (this.tableData.length > 1) {
+      this.tableData.splice(index, 1);
+    }
+  }
+
+  goBack(): void {
+    this.back.emit();
+  }
+
+  close(): void {
+    this.visible = false;
+    this.visibleChange.emit(false);
+  }
+
+  onCopy(): void {
+    const requestParameters = this.tableData.map(row => ({
+      requestKeyValue: this.selectedFields.map(field => ({
+        id: row.id,
+        key: field,
+        value: row[field]
+      }))
+    }));
+
+    this.requestService.createBulkRequest(
+      this.branchCode,
+      this.countryCode,
+      this.bnppuid,
+      undefined,
+      requestParameters
+    ).subscribe({
+      next: () => {
+        console.log('Bulk request created');
+        this.close();
+      },
+      error: (err) => {
+        console.error('Error:', err);
+      }
+    });
+  }
+}
+
+
+---
+
+✅ copy-confirmation-dialog.component.html
+
+<p-dialog header="Confirm Copy"
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{ width: '1000px' }">
+
+  <button pButton icon="pi pi-arrow-left"
+    class="p-button-text"
+    (click)="goBack()">
+  </button>
+
+  <p-table
+    [value]="tableData"
+    [scrollable]="true"
+    scrollHeight="400px"
+    scrollDirection="both"
+    styleClass="p-datatable-sm">
+
+    <!-- HEADER -->
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Request Name</th>
+        <th *ngFor="let field of selectedFields">
+          {{ field }}
+        </th>
+        <th style="width: 80px">Action</th>
+      </tr>
+    </ng-template>
+
+    <!-- BODY -->
+    <ng-template pTemplate="body" let-row let-rowIndex="rowIndex">
+      <tr>
+        <td>{{ row.requestName }}</td>
+
+        <td *ngFor="let field of selectedFields">
+          <input pInputText [(ngModel)]="row[field]" />
+        </td>
+
+        <td style="text-align:center">
+          <button pButton icon="pi pi-trash"
+            class="p-button-danger p-button-text"
+            (click)="deleteRequest(rowIndex)"
+            [disabled]="tableData.length === 1">
+          </button>
+        </td>
+      </tr>
+    </ng-template>
+
+  </p-table>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancel"
+      class="p-button-text"
+      (click)="close()">
+    </button>
+
+    <button pButton label="Copy"
+      class="p-button-success"
+      (click)="onCopy()"
+      [disabled]="!isFormValid()">
+    </button>
+  </ng-template>
+
+</p-dialog>
+
+
+---
+
+🚀 3. PARENT COMPONENT FIX
+
+✅ Fix navigation
+
+onCopyTemplateConfigured(config: any): void {
+  this.copyCount = config.copyCount;
+  this.selectedFields = [...config.selectedFields];
+
+  this.isCopyTemplateDialogVisible = false;
+  this.isCopyConfirmationDialogVisible = true;
+}
+
+onBackFromConfirmation(): void {
+  this.isCopyConfirmationDialogVisible = false;
+  this.isCopyTemplateDialogVisible = true;
+}
+
+
+---
+
+🎯 FINAL FEATURES YOU NOW HAVE
+
+✅ Multi-select fields
+✅ Dynamic columns
+✅ Dynamic rows
+✅ Editable table
+✅ Delete row
+✅ Validation (empty values blocked)
+✅ Back navigation
+✅ Clean API payload
+✅ Scroll support
+✅ No duplicate fields
+
+
+---
+
+💯 Interview Ready Line (IMPORTANT)
+
+Agar koi puche:
+
+👉 “How did you design this feature?”
+
+Bolna:
+
+> “I implemented a dynamic UI-driven copy workflow using Angular, where selected fields define table columns and user input count generates rows. The system transforms UI data into structured API payloads using mapping, ensuring scalability and maintainability.”
+
+
+
+
+---
+
+🔥 If you want next level
+
+Bol dena: 👉 “Add validation + error per row + API retry + loader”
+
+Main tujhe senior-level production version bana dunga 😎
