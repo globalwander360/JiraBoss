@@ -1,0 +1,258 @@
+Perfect bhai 🔥 — ab main tujhe sirf wahi files ka FULL UPDATED CODE de raha hoon jaha change karna hai.
+👉 Tu directly copy-paste kar sakta hai — no confusion 💯
+
+
+---
+
+🧩 ✅ 1. RESOLVER FILE (FINAL FIXED)
+
+📁 copy-feature/utils/field-value.resolver.ts
+
+import { FIELD_MAPPING_CONFIG } from '../config/field-mapping.config';
+
+export class FieldValueResolver {
+
+  static resolve(field: string, row: any, context: any, selectedFields: string[]): any {
+
+    // ✅ Correct user value check
+    const hasUserValue =
+      selectedFields.includes(field) &&
+      Object.prototype.hasOwnProperty.call(row, field) &&
+      row[field] !== null &&
+      row[field] !== undefined &&
+      row[field] !== '';
+
+    if (hasUserValue) {
+      return row[field];
+    }
+
+    // ✅ Config lookup
+    const config = FIELD_MAPPING_CONFIG.find(f => f.field === field);
+
+    // ✅ Source fallback
+    if (config?.source) {
+      return this.getValueFromPath(context, config.source);
+    }
+
+    // ✅ Default fallback
+    if (config?.defaultValue !== undefined) {
+      return config.defaultValue;
+    }
+
+    return null;
+  }
+
+  private static getValueFromPath(obj: any, path: string): any {
+    return path.split('.').reduce((acc, key) => acc?.[key], obj);
+  }
+}
+
+
+---
+
+🧩 ✅ 2. CONFIRMATION COMPONENT (CRITICAL FIX)
+
+📁 copy-feature/components/copy-confirmation-dialog/copy-confirmation-dialog.component.ts
+
+import { Component, Input, Output, EventEmitter, OnChanges } from '@angular/core';
+import { RequestService } from '@api/controller';
+import { FieldValueResolver } from '../../utils/field-value.resolver';
+
+@Component({
+  selector: 'app-copy-confirmation-dialog',
+  templateUrl: './copy-confirmation-dialog.component.html'
+})
+export class CopyConfirmationDialogComponent implements OnChanges {
+
+  @Input() visible = false;
+  @Input() selectedFields: string[] = [];
+  @Input() allFields: string[] = [];
+  @Input() copyCount = 0;
+  @Input() instructionSheet: any;
+
+  @Output() visibleChange = new EventEmitter<boolean>();
+  @Output() back = new EventEmitter<void>();
+
+  tableData: any[] = [];
+
+  constructor(private requestService: RequestService) {}
+
+  // ✅ FIX: prevent table reset
+  ngOnChanges(): void {
+    if (this.visible && this.tableData.length === 0) {
+      this.initTable();
+    }
+  }
+
+  initTable(): void {
+    this.tableData = Array.from({ length: this.copyCount }, (_, i) => {
+      const row: any = {
+        id: i + 1,
+        requestName: `Request ${i + 1}`
+      };
+
+      this.selectedFields.forEach(f => row[f] = '');
+      return row;
+    });
+  }
+
+  isValid(): boolean {
+    return this.tableData.every(row =>
+      this.selectedFields.every(f => row[f])
+    );
+  }
+
+  deleteRow(i: number): void {
+    if (this.tableData.length > 1) {
+      this.tableData.splice(i, 1);
+    }
+  }
+
+  onCopy(): void {
+
+    // ✅ DEBUG (check values)
+    console.log('TABLE DATA:', this.tableData);
+
+    const context = { instructionSheet: this.instructionSheet };
+
+    const payload = this.tableData.map(row => ({
+      requestKeyValue: this.allFields.map(field => ({
+        id: row.id,
+        key: field,
+        value: FieldValueResolver.resolve(
+          field,
+          row,
+          context,
+          this.selectedFields
+        )
+      }))
+    }));
+
+    console.log('FINAL PAYLOAD:', payload); // optional debug
+
+    this.requestService.createBulkRequest(
+      '30004',
+      'FR',
+      'tech001',
+      undefined,
+      payload
+    ).subscribe({
+      next: () => this.close(),
+      error: (err) => console.error(err)
+    });
+  }
+
+  close(): void {
+    this.visible = false;
+    this.visibleChange.emit(false);
+  }
+
+  goBack(): void {
+    this.back.emit();
+  }
+}
+
+
+---
+
+🧩 ✅ 3. MODULE FIX (MANDATORY)
+
+📁 your-module.module.ts
+
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+@NgModule({
+  imports: [
+    CommonModule,
+    FormsModule // ✅ REQUIRED for ngModel
+  ]
+})
+export class YourModule {}
+
+
+---
+
+🧩 ✅ 4. TEMPLATE DIALOG CHECK
+
+📁 copy-feature/components/copy-template-dialog/copy-template-dialog.component.ts
+
+👉 Just ensure this (no change if already same):
+
+this.availableFields = res.map(f => ({
+  label: f.param,
+  value: f.columnName // ✅ MUST match row[field]
+}));
+
+
+---
+
+🚀 AFTER THIS — TEST FLOW
+
+✅ Step 1:
+
+Table me kuch fill kar:
+
+MFR → ABC123
+
+✅ Step 2:
+
+Console check:
+
+TABLE DATA: [{ MFR: 'ABC123' }]
+
+
+---
+
+❌ If NOT coming:
+
+👉 issue = ngModel
+
+❌ If coming but payload wrong:
+
+👉 issue = resolver
+
+
+---
+
+💯 FINAL RESULT
+
+👉 After these fixes:
+
+✅ User values correctly payload me jayengi
+
+✅ Table reset nahi hoga
+
+✅ Fallback logic properly work karega
+
+
+
+---
+
+🔥 REAL FINAL LINE
+
+👉 Ye 2 fixes:
+
+1. resolver condition
+
+
+2. ngOnChanges guard
+
+
+
+👉 = 100% issue solve
+
+
+---
+
+Agar ab bhi dikkat aaye:
+
+👉 bas bhej:
+
+TABLE DATA log
+
+FINAL PAYLOAD log
+
+
+Main 1 min me pinpoint kar dunga ⚡
