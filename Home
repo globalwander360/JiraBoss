@@ -1,0 +1,601 @@
+Samajh gaya bhai 💯
+Tu bol raha hai ki sab parts alag-alag nahi, ek continuous flow me chahiye — jaise real documentation hoti hai
+
+👉 Ab main tujhe connected, smooth, end-to-end documentation de raha hoon — bina break, bina repetition, ek proper flow me 🔥
+
+
+---
+
+📄 External Track & Trace System Documentation
+
+(Conserto → Connexis Integration)
+
+
+---
+
+1. Introduction
+
+The External Track & Trace system is designed to enable real-time tracking and synchronization of transaction lifecycle between Conserto (CST) and Connexis (CXT).
+
+In the previous architecture, UV (iVision) acted as an intermediary system responsible for initiating transactions and sending updates to Connexis. This dependency caused multiple issues such as delayed updates, lack of intermediate visibility, and inconsistent transaction handling.
+
+To address these challenges, a new architecture was introduced where Conserto directly communicates with Connexis, ensuring faster processing, better visibility, and improved system reliability.
+
+
+---
+
+2. System Objective
+
+The primary goal of this system is to:
+
+Provide real-time and intermediate status visibility
+
+Eliminate dependency on UV for transaction initiation
+
+Ensure consistent and standardized data exchange
+
+Prevent duplicate transaction creation
+
+Enable end-to-end automation of transaction lifecycle
+
+
+
+---
+
+3. System Architecture Overview
+
+The system follows an event-driven architecture, where each transaction step is treated as an event.
+
+Key Components
+
+Conserto (CST) – Core system where events are created and processed
+
+Connexis (CXT) – External system that displays transaction tracking
+
+UV Referential API – Provides customer-related data
+
+Camunda Workflow Engine – Controls execution flow
+
+Database Layer – Stores mapping, tracking, and history
+
+
+
+---
+
+4. Data Model & Database Design
+
+The system relies on a data-driven design, where logic is controlled through database tables instead of hardcoding.
+
+Core Tables
+
+DPW_EVENT – Stores event-level transaction data
+
+DPW_REQUEST – Stores request-level data
+
+
+These tables contain critical fields such as:
+
+Event ID
+
+Connexis Reference ID
+
+Transaction ID
+
+Product and status codes
+
+Customer details
+
+
+
+---
+
+Track & Trace Tables
+
+DPW_EXTERNAL_TRACK_AND_TRACE – Stores event-level tracking data
+
+DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY – Stores status history
+
+DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY_AUD – Maintains audit logs
+
+
+These tables ensure:
+
+Traceability of transactions
+
+Prevention of duplicate sending
+
+Full audit tracking
+
+
+
+---
+
+Mapping Table (Core Logic Driver)
+
+DPW_EXTERNAL_TRACK_TRACE_MAPPING is the most critical component of the system.
+
+It defines:
+
+Mapping between Conserto and Connexis statuses
+
+Product and transaction codes
+
+Rules for XML generation
+
+
+Instead of hardcoding logic, the system dynamically fetches values from this table, making it scalable and flexible.
+
+
+---
+
+5. Customer Data Synchronization
+
+Customer data is fetched from the UV Referential API and updated in the system.
+
+Fields Updated
+
+EB Customer Flag
+
+EB Customer ID
+
+EB Bank ID
+
+
+This synchronization happens:
+
+At event creation
+
+When customer data is updated
+
+
+This ensures that only eligible customers trigger Track & Trace processing.
+
+
+---
+
+6. Core Processing Flow
+
+The system execution begins when a user performs an action.
+
+Step 1: Validate Trigger
+
+When the user clicks the Validate button, the system initiates the Track & Trace process.
+
+
+---
+
+Step 2: Condition Check
+
+Before processing, the system validates:
+
+Transaction is not an update (is_update = N)
+
+Customer is eligible (eb_cus_flag = Y)
+
+Mapping exists for the current status
+
+Status has not already been sent
+
+
+Additionally, the system blocks execution if:
+
+Status is Sending (02)
+
+AND transaction ID is NULL
+
+
+This prevents duplicate transaction creation.
+
+
+---
+
+Step 3: Mapping Evaluation
+
+The system queries the mapping table using:
+
+Current event status
+
+Action type
+
+
+If a match is found:
+
+Required fields are extracted
+
+XML generation process starts
+
+
+If no mapping exists:
+
+The process is stopped
+
+
+
+---
+
+Step 4: Camunda Workflow Execution
+
+Once conditions are satisfied, a Camunda workflow is triggered.
+
+The workflow performs:
+
+1. XML generation
+
+
+2. TAR file creation
+
+
+3. Status update
+
+
+
+
+---
+
+7. XML Generation Logic
+
+The system dynamically generates XML based on:
+
+Event data
+
+Mapping table
+
+Customer data
+
+Courier details
+
+
+Key Rules
+
+Reference ID Priority
+
+1. Connexis reference ID
+
+
+2. MFR reference
+
+
+3. Event ID
+
+
+
+Conditional Field Inclusion
+
+Fields are included only if required
+
+
+BO Status Update
+
+Set to Y if mapping contains Connexis status
+
+
+Date Handling
+
+Current time + 2 hours (CET)
+
+
+Amount Formatting
+
+Standard format: 100,000.00
+
+
+
+
+---
+
+8. TAR File Generation & Sending
+
+The generated XML is packaged into a .tar file.
+
+Naming Convention
+
+File name = Event ID
+
+
+
+---
+
+Status Lifecycle
+
+Stage	Status
+
+Generated	Ready (01)
+Sent	Sending (02)
+
+
+
+---
+
+Sending Process
+
+The system automatically processes events with: 👉 Status = Ready (01)
+
+Steps:
+
+1. Validate conditions
+
+
+2. Check duplicate sending
+
+
+3. Send TAR file
+
+
+4. Update status to Sending
+
+
+
+
+---
+
+9. Idempotency (Duplicate Prevention)
+
+Before sending data, the system checks if the same status was already sent.
+
+Rules
+
+If already ACK → Do not send
+
+If already successfully sent → Do not send
+
+If NACK → Retry allowed
+
+If no record → Send
+
+
+This ensures:
+
+No duplicate transactions
+
+Clean integration
+
+
+
+---
+
+10. Incoming Flow (ACK/NACK Handling)
+
+After sending, Connexis processes the request and returns a response.
+
+Processing Steps
+
+1. Receive TAR file
+
+
+2. Extract XML
+
+
+3. Identify event using mo_event_id
+
+
+4. Update database
+
+
+
+
+---
+
+ACK/NACK Mapping
+
+Value	Meaning
+
+01	ACK
+02	NACK
+
+
+
+---
+
+Fix Implemented
+
+Earlier:
+
+NACK was incorrectly stored
+
+
+Now:
+
+Correctly stored as NACK
+
+
+
+---
+
+Error Handling
+
+Error messages are logged
+
+Stored for debugging
+
+
+
+---
+
+11. Retry Mechanism
+
+Retry is allowed only when:
+
+Status = NACK
+
+No response received
+
+
+Retry is blocked when:
+
+Status = ACK
+
+Already successfully sent
+
+
+
+---
+
+12. Closure Flow
+
+When a transaction is completed:
+
+Trigger
+
+User clicks Completed button
+
+
+
+---
+
+Conditions
+
+Connexis transaction exists
+
+Status = ACK
+
+Already sent at least once
+
+
+
+---
+
+Action
+
+Generate final XML
+
+Send TAR file
+
+Close transaction in Connexis
+
+
+
+---
+
+13. Courier Integration
+
+The system supports courier tracking.
+
+Fields
+
+Courier partner
+
+Waybill number
+
+
+
+---
+
+Trigger
+
+On saving courier details
+
+
+
+---
+
+Usage
+
+Included in XML
+
+Can trigger sending
+
+
+
+---
+
+14. Advanced Features
+
+Event-level tracking
+
+Mapping-driven logic
+
+Multi-product XML support
+
+Automated workflows
+
+Full audit history
+
+
+
+---
+
+15. Key Fixes Implemented
+
+ACK/NACK Fix
+
+Correct status mapping
+
+
+
+---
+
+XML Tag Fix
+
+drawer_reference replaced with drawee_reference
+
+
+
+---
+
+Customer Sync Fix
+
+Always fetch latest data from UV
+
+
+
+---
+
+16. Edge Cases Handled
+
+Duplicate sending prevention
+
+Missing mapping handling
+
+Connexis no response scenario
+
+Throwback scenario
+
+Invalid XML handling
+
+Missing reference fallback
+
+
+
+---
+
+17. Final System Flow
+
+👉 Complete lifecycle:
+
+Event Created → Validate → Mapping → XML → TAR → Send → ACK/NACK → Update → Retry / Close
+
+
+---
+
+18. Conclusion
+
+The External Track & Trace system is now a robust, scalable, and production-ready solution.
+
+It successfully:
+
+Eliminates dependency on UV
+
+Enables real-time tracking
+
+Prevents duplicate transactions
+
+Ensures accurate and reliable integration with Connexis
+
+
+
+---
+
+🔥 Done Bhai
+
+Ye hai proper connected documentation —
+👉 clean flow
+👉 no repetition
+👉 easy samajhne layak
+👉 professional
+
+
+---
+
+Agar tu bole: 👉 “Isko PDF me convert kar exact isi format me”
+
+to main same content → perfect formatting PDF bana dunga (best version) 🚀
