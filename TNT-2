@@ -1,0 +1,536 @@
+Perfect 👍
+Now we move to the most important part of the system — this is where actual logic lives.
+
+
+---
+
+📄 Part 2 – Database Design and Mapping Logic
+
+
+---
+
+1. Introduction
+
+The External Track & Trace system is built on a data-driven architecture, where most of the business logic is controlled through database tables instead of hardcoded logic.
+
+This design makes the system:
+
+Flexible
+
+Scalable
+
+Easy to maintain
+
+
+The database plays a critical role in:
+
+Storing transaction data
+
+Driving XML generation
+
+Controlling integration behavior
+
+Maintaining history and audit logs
+
+
+
+---
+
+2. Data Model Overview
+
+The system consists of three main categories of tables:
+
+
+---
+
+2.1 Core Business Tables
+
+These tables store the actual transaction data.
+
+DPW_EVENT
+
+DPW_REQUEST
+
+
+
+---
+
+2.2 Track & Trace Tables
+
+These tables store integration-related data.
+
+DPW_EXTERNAL_TRACK_AND_TRACE
+
+DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY
+
+DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY_AUD
+
+
+
+---
+
+2.3 Mapping Table
+
+This is the most critical table:
+
+DPW_EXTERNAL_TRACK_TRACE_MAPPING
+
+
+It controls how data is transformed and sent to Connexis.
+
+
+---
+
+3. DPW_EVENT Table (Core Table)
+
+The DPW_EVENT table is the central table of the system.
+
+
+---
+
+Purpose
+
+Stores event-level transaction data
+
+Acts as the main source for:
+
+XML generation
+
+Status tracking
+
+Integration processing
+
+
+
+
+---
+
+Important Fields
+
+Field	Description
+
+EVENT_ID	Unique identifier of the event
+CONNEXIS_REQ_REF_ID	Reference ID from Connexis
+CONNEXIS_REQ_TNX_ID	Transaction ID from Connexis
+CONNEXIS_STATUS	Current status (Ready, Sending, ACK, NACK)
+PROD_CODE	Product code
+TNX_TYPE_CODE	Transaction type
+SUB_TNX_TYPE_CODE	Sub transaction type
+PROD_STAT_CODE	Product status
+EB_CUS_FLAG	Customer eligibility flag
+EB_CUS_ID	Customer ID
+EB_BAN_ID	Bank identifier
+
+
+
+---
+
+Why This Table is Important
+
+All major operations such as:
+
+XML generation
+
+Status updates
+
+Integration checks
+
+
+are driven from this table.
+
+
+---
+
+4. DPW_REQUEST Table
+
+The DPW_REQUEST table stores request-level data.
+
+
+---
+
+Purpose
+
+Stores high-level transaction details
+
+Linked with events
+
+
+
+---
+
+Key Point
+
+Although both request and event exist: 👉 Tracking is done at event level, not request level
+
+
+---
+
+5. Track & Trace Table
+
+Table: DPW_EXTERNAL_TRACK_AND_TRACE
+
+
+---
+
+Purpose
+
+This table stores integration tracking data.
+
+
+---
+
+Key Fields
+
+Field	Description
+
+EVENT_ID	Linked event
+REQUEST_ID	Linked request
+EB_CUS_FLAG	Customer eligibility
+EB_CUS_ID	Customer ID
+EB_BAN_ID	Bank ID
+CXT_TRACK_TRACE_STATUS	Connexis tracking status
+
+
+
+---
+
+Design Improvement (Important)
+
+Earlier, this table stored many extra fields.
+
+Now:
+
+It only stores essential tracking data
+
+Other values are fetched dynamically
+
+
+
+---
+
+6. History and Audit Tables
+
+
+---
+
+6.1 DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY
+
+
+---
+
+Purpose
+
+Stores history of:
+
+Data sent to Connexis
+
+ACK/NACK responses
+
+
+
+---
+
+Example Data Stored
+
+Event ID
+
+Status sent
+
+Response received
+
+Timestamp
+
+
+
+---
+
+6.2 DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY_AUD
+
+
+---
+
+Purpose
+
+Maintains audit trail
+
+Stores version history
+
+
+
+---
+
+Why These Tables Are Important
+
+Help in debugging
+
+Ensure traceability
+
+Prevent duplicate sending
+
+
+
+---
+
+7. Mapping Table (Core Logic Engine)
+
+Table: DPW_EXTERNAL_TRACK_TRACE_MAPPING
+
+
+---
+
+Purpose
+
+This table is the brain of the system.
+
+It defines:
+
+How Conserto statuses map to Connexis
+
+What values should be sent in XML
+
+What action should be triggered
+
+
+
+---
+
+Columns
+
+Column	Description
+
+BRANCH_CODE	Branch identifier
+COUNTRY_CODE	Country
+PGPE_CODE	Product group
+ACTION	Action type (Validate, AutoIS, etc.)
+STATUS_CST	Conserto status
+STATUS_CXT	Connexis status
+PROD_CODE	Product code
+TNX_TYPE_CODE	Transaction type
+SUB_TNX_TYPE_CODE	Sub transaction type
+PROD_STAT_CODE	Product status
+TNX_STAT_CODE	Transaction status
+
+
+
+---
+
+8. How Mapping Works (Very Important)
+
+When an event is processed, the system performs:
+
+
+---
+
+Step 1: Read Current Data
+
+Current event status
+
+Action performed (e.g., Validate)
+
+
+
+---
+
+Step 2: Query Mapping Table
+
+SELECT * FROM DPW_EXTERNAL_TRACK_TRACE_MAPPING
+WHERE STATUS_CST = current_status
+AND ACTION = current_action;
+
+
+---
+
+Step 3: If Mapping Found
+
+The system extracts:
+
+Connexis status (STATUS_CXT)
+
+Product code
+
+Transaction type
+
+Other required fields
+
+
+
+---
+
+Step 4: Use Mapping Data
+
+This data is used to:
+
+Generate XML
+
+Decide whether to send data
+
+Control workflow execution
+
+
+
+---
+
+If Mapping Not Found
+
+Process stops
+
+No XML is generated
+
+
+
+---
+
+9. Customer Data Synchronization
+
+
+---
+
+Source
+
+Customer data is fetched from: 👉 UV Referential API
+
+
+---
+
+Fields Updated
+
+Field	Description
+
+EB_CUS_FLAG	Indicates if customer is eligible
+EB_CUS_ID	Customer ID
+EB_BAN_ID	Bank ID
+
+
+
+---
+
+When It Happens
+
+At event creation
+
+When customer ID is updated
+
+
+
+---
+
+Why Important
+
+This data determines: 👉 Whether Track & Trace should be triggered or not
+
+
+---
+
+10. Courier Data Tables
+
+
+---
+
+Tables
+
+DPW_COURIER
+
+DPW_COURIER_AUD
+
+DPW_COURIER_PARTNER_CATEGORY
+
+DPW_COURIER_PARTNER_CATEGORY_PROCESSING
+
+
+
+---
+
+Purpose
+
+Store courier details such as:
+
+Courier partner
+
+Waybill number
+
+
+
+
+---
+
+Usage
+
+Included in XML
+
+Used for tracking physical documents
+
+
+
+---
+
+11. Key Design Principles
+
+
+---
+
+Event-Level Tracking
+
+More granular control
+
+Better traceability
+
+
+
+---
+
+Dynamic Data Fetching
+
+Avoid redundancy
+
+Improve flexibility
+
+
+
+---
+
+Mapping-Based Logic
+
+No hardcoding
+
+Easy updates
+
+
+
+---
+
+History Tracking
+
+Full audit trail
+
+Helps in debugging
+
+
+
+---
+
+12. Summary
+
+In this part, we covered:
+
+Complete database structure
+
+Role of each table
+
+Mapping logic (core system behavior)
+
+Customer and courier data handling
+
+
+
+---
+
+✅ Part 2 Completed
+
+This is the core foundation of system logic 💯
+
+
+---
+
+👉 Now say “next”
+I’ll explain Part 3 (Processing Flow + Camunda + Sending Logic) —
+👉 this is where actual execution happens 🚀
