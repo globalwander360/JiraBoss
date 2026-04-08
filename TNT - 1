@@ -1,0 +1,228 @@
+Got it bhai 👍
+Now I’ll explain in clear, professional English — in a way you can directly copy into your documentation and also easily understand.
+
+
+---
+
+📄 Part 1 – System Overview and Business Context
+
+
+---
+
+1. Introduction
+
+The External Track & Trace system is designed to provide real-time visibility of transaction status between Conserto (CST) and Connexis (CXT).
+
+In earlier architecture, UV (iVision) acted as an intermediary system responsible for initiating transactions and sending updates to Connexis. This created several operational and technical challenges, including delayed updates, lack of transparency, and inconsistent data handling.
+
+To overcome these issues, a new architecture was introduced where Conserto directly communicates with Connexis, enabling faster processing, better visibility, and improved system reliability.
+
+
+---
+
+2. Problem Statement
+
+The previous system had multiple limitations:
+
+2.1 Lack of Intermediate Visibility
+
+Connexis users were only able to see the final status of a transaction.
+Intermediate steps such as processing, validation, or internal checks were not visible.
+
+
+---
+
+2.2 Dependency on UV System
+
+All communication between Conserto and Connexis was routed through UV.
+This caused:
+
+Increased system dependency
+
+Delays in processing
+
+Single point of failure
+
+
+
+---
+
+2.3 Duplicate Transaction Creation
+
+In cases where required identifiers (such as Connexis transaction ID) were missing, the system sometimes created duplicate transactions in Connexis instead of updating existing ones.
+
+
+---
+
+2.4 Inconsistent Data Flow
+
+Different systems used different identifiers and formats, leading to:
+
+Data mismatches
+
+Synchronization issues
+
+Difficulty in tracking transactions
+
+
+
+---
+
+3. Solution Overview
+
+To address the above challenges, the system was redesigned with the following improvements:
+
+Direct Conserto → Connexis integration
+
+Removal of UV as a transaction initiator (used only for customer data)
+
+Introduction of mapping-based logic
+
+Standardized XML-based communication
+
+Controlled and rule-based processing
+
+
+
+---
+
+4. System Objective
+
+The main objectives of the External Track & Trace system are:
+
+To provide real-time and intermediate transaction tracking
+
+To eliminate dependency on UV for transaction initiation
+
+To ensure accurate and consistent data exchange
+
+To prevent duplicate transaction creation
+
+To automate the end-to-end transaction lifecycle
+
+
+
+---
+
+5. Key Concept – Event-Based Processing
+
+The system is designed using an event-driven architecture.
+
+What is an Event?
+
+An event represents a specific step in the transaction lifecycle.
+
+Examples:
+
+Request received
+
+Document verified
+
+Transaction approved
+
+
+Each event corresponds to a state or action in the system.
+
+
+---
+
+6. High-Level System Flow
+
+The overall system flow can be summarized as:
+
+1. An event is created in Conserto
+
+
+2. The user performs an action (e.g., Validate)
+
+
+3. The system evaluates predefined conditions
+
+
+4. Data is prepared and converted into XML format
+
+
+5. XML is sent to Connexis
+
+
+6. Connexis processes the request and sends a response (ACK/NACK)
+
+
+7. The system updates the event status accordingly
+
+
+
+
+---
+
+7. Key Terminologies
+
+Term	Description
+
+Event ID	Unique identifier for each event
+Reference ID (Ref ID)	Connexis reference identifier
+Transaction ID (Tnx ID)	Transaction identifier in Connexis
+ACK	Acknowledgement – indicates successful processing
+NACK	Negative acknowledgement – indicates failure
+XML	Data format used for communication
+TAR File	Compressed file containing XML
+
+
+
+---
+
+8. Example Scenario
+
+Consider a scenario where a user submits a transaction request:
+
+1. The system creates an event (e.g., "Request Initiated")
+
+
+2. The user clicks Validate
+
+
+3. The system sends the current status to Connexis
+
+
+4. Connexis processes the request and responds with:
+
+ACK → if successful
+
+NACK → if there is an error
+
+
+
+5. The system updates the transaction status accordingly
+
+
+
+
+---
+
+9. Summary
+
+The External Track & Trace system replaces a complex, dependent architecture with a direct, efficient, and scalable integration model.
+
+It ensures:
+
+Real-time tracking
+
+Improved transparency
+
+Reduced dependency
+
+Accurate and consistent transaction handling
+
+
+
+---
+
+✅ Part 1 Completed
+
+Now this is clean, professional, and document-ready 💯
+
+
+---
+
+👉 When you're ready, say: “next”
+I’ll explain Part 2 (Database + Mapping – core system logic) in the same way 🚀
