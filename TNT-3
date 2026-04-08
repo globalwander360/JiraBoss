@@ -1,0 +1,537 @@
+Perfect 👍
+Now we move to the execution layer of the system — this is where everything actually happens.
+
+
+---
+
+📄 Part 3 – Processing Flow, Workflow Execution and Sending Logic
+
+
+---
+
+1. Introduction
+
+This section explains how the system processes an event from the moment a user performs an action until data is sent to Connexis.
+
+It covers:
+
+Trigger conditions
+
+Validation logic
+
+Mapping evaluation
+
+Workflow execution (Camunda)
+
+XML and TAR generation
+
+Sending mechanism
+
+
+
+---
+
+2. Entry Point – Validate Action
+
+The Track & Trace process starts when the user clicks the “Validate” button.
+
+
+---
+
+Why Validate is Important
+
+It acts as the main trigger for integration
+
+Not every event is sent to Connexis
+
+Only events that meet specific conditions are processed
+
+
+
+---
+
+3. Pre-Processing Conditions
+
+Before executing any logic, the system performs validation checks.
+
+
+---
+
+Mandatory Conditions
+
+The system proceeds only if:
+
+The transaction is not an update
+(is_update = N)
+
+The customer is eligible
+(eb_cus_flag = Y)
+
+A valid mapping exists in the mapping table
+
+The status has not already been successfully sent
+
+
+
+---
+
+Blocking Condition (Critical)
+
+The system must NOT send data if:
+
+Connexis status = Sending (02)
+
+AND Connexis Transaction ID is NULL
+
+
+
+---
+
+Reason
+
+This condition prevents:
+
+Duplicate transaction creation
+
+Inconsistent updates
+
+
+
+---
+
+4. Mapping Evaluation
+
+Once validation is successful, the system evaluates the mapping table.
+
+
+---
+
+Process
+
+1. Read:
+
+Current event status
+
+Action performed (e.g., Validate)
+
+
+
+2. Query mapping table:
+
+
+
+SELECT * FROM DPW_EXTERNAL_TRACK_TRACE_MAPPING
+WHERE STATUS_CST = current_status
+AND ACTION = 'VALIDATE';
+
+
+---
+
+If Mapping Exists
+
+The system retrieves:
+
+Connexis status (STATUS_CXT)
+
+Product code
+
+Transaction type
+
+Sub transaction type
+
+
+
+---
+
+If Mapping Does Not Exist
+
+Process stops
+
+No XML is generated
+
+
+
+---
+
+5. Camunda Workflow Execution
+
+After mapping is validated, the system triggers a Camunda workflow.
+
+
+---
+
+Workflow Steps
+
+Step 1: XML Generation
+
+Data is collected from:
+
+Event table
+
+Mapping table
+
+Customer data
+
+Courier data
+
+
+
+
+---
+
+Step 2: TAR File Creation
+
+XML file is generated
+
+Packaged into a .tar file
+
+
+
+---
+
+Step 3: Status Update
+
+Event status is updated to: 👉 Ready (01)
+
+
+
+---
+
+6. XML Generation Logic
+
+XML is generated dynamically based on system data and mapping rules.
+
+
+---
+
+Key Rules
+
+Reference ID (ref_id)
+
+Priority:
+
+1. Connexis reference ID
+
+
+2. MFR reference
+
+
+3. Event ID
+
+
+
+
+---
+
+Transaction ID (tnx_id)
+
+Included only if available
+
+
+
+---
+
+Mapping-Based Fields
+
+Product code
+
+Transaction type
+
+Status codes
+
+
+
+---
+
+BO Status Update
+
+Set to Y if Connexis status exists
+
+Otherwise N
+
+
+
+---
+
+Date Handling
+
+Current system time + 2 hours (CET)
+
+
+
+---
+
+Conditional Fields
+
+Fields are included only if required
+
+Avoid unnecessary data
+
+
+
+---
+
+7. TAR File Generation
+
+After XML creation:
+
+
+---
+
+Process
+
+XML is compressed into a TAR file
+
+
+
+---
+
+Naming Convention
+
+<EVENT_ID>.tar
+
+
+---
+
+Status Update
+
+Stage	Status
+
+After generation	Ready (01)
+
+
+
+---
+
+8. Sending Engine
+
+The system automatically processes events that are ready to be sent.
+
+
+---
+
+Trigger Condition
+
+👉 Events with status = Ready (01)
+
+
+---
+
+Steps
+
+1. Select event
+
+
+2. Re-check validation conditions
+
+
+3. Apply idempotency check
+
+
+4. Send TAR file to Connexis
+
+
+5. Update status
+
+
+
+
+---
+
+Status Transition
+
+Before	After
+
+Ready (01)	Sending (02)
+
+
+
+---
+
+9. Idempotency Logic (Duplicate Prevention)
+
+Before sending, the system ensures that the same data is not sent multiple times.
+
+
+---
+
+Rules
+
+Condition	Action
+
+Already ACK	Do not send
+Already successfully sent	Do not send
+NACK received	Retry allowed
+No previous record	Send
+
+
+
+---
+
+Importance
+
+Prevents duplicate transactions
+
+Maintains data integrity
+
+
+
+---
+
+10. Auto Trigger (Auto IS Flow)
+
+
+---
+
+Trigger
+
+Event created automatically
+
+
+
+---
+
+Conditions
+
+Customer is eligible
+
+Mapping exists for action = AutoIS
+
+
+
+---
+
+Action
+
+Automatically triggers:
+
+XML generation
+
+Sending flow
+
+
+
+
+---
+
+11. Courier-Based Trigger
+
+
+---
+
+Trigger
+
+User saves courier details
+
+
+
+---
+
+Action
+
+XML is generated
+
+TAR is sent to Connexis
+
+
+
+---
+
+Data Included
+
+Courier partner
+
+Waybill number
+
+
+
+---
+
+12. Status Lifecycle
+
+The event goes through multiple statuses during processing.
+
+
+---
+
+Flow
+
+Initial → Ready (01) → Sending (02) → ACK / NACK
+
+
+---
+
+Meaning
+
+Status	Description
+
+Ready (01)	Ready to send
+Sending (02)	Sent to Connexis
+ACK	Successfully processed
+NACK	Processing failed
+
+
+
+---
+
+13. Error Handling (Sending Phase)
+
+
+---
+
+If Mapping Missing
+
+Process stops
+
+
+
+---
+
+If Conditions Fail
+
+No action triggered
+
+
+
+---
+
+If Sending Fails
+
+Event remains pending
+
+Can be retried
+
+
+
+---
+
+14. Summary
+
+This section explained:
+
+How the process starts (Validate trigger)
+
+How mapping controls execution
+
+How workflow (Camunda) is executed
+
+How XML and TAR are generated
+
+How data is sent to Connexis
+
+How duplicate sending is prevented
+
+
+
+---
+
+✅ Part 3 Completed
+
+Now you understand how the system executes internally 💯
+
+
+---
+
+👉 Say “next”
+I’ll explain Part 4 (Incoming Flow, ACK/NACK, Retry & Closure Logic) —
+👉 this is how system handles responses and completes lifecycle 🚀
