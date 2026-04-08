@@ -1,0 +1,557 @@
+Got it bhai 💯
+Ab main Part 4 ko deep + detailed + document-ready likh raha hoon —
+👉 isme tu directly copy paste kar sakta hai, aur ye production-level understanding deta hai 🔥
+
+
+---
+
+📄 Part 4 – Incoming Flow, Acknowledgement Handling, Retry Mechanism and Closure Logic
+
+
+---
+
+1. Introduction
+
+After the Track & Trace data is sent from Conserto to Connexis, the system must handle the response returned by Connexis. This response determines whether the transaction was successfully processed or failed.
+
+This section explains:
+
+How incoming data from Connexis is processed
+
+How ACK and NACK responses are handled
+
+How retry logic works
+
+How the system ensures proper closure of transactions
+
+
+
+---
+
+2. Incoming Response Overview
+
+Once a TAR file is sent to Connexis, the external system processes the request and sends back a response.
+
+Response Format
+
+The response is received as a TAR file
+
+The TAR file contains an XML file
+
+
+
+---
+
+Purpose of the Response
+
+The response indicates:
+
+Whether the request was successfully processed (ACK)
+
+Whether the request failed (NACK)
+
+Additional error details (if any)
+
+
+
+---
+
+3. Incoming Processing Flow
+
+The system follows a structured approach to process incoming responses.
+
+
+---
+
+Step 1: File Reception
+
+The system receives a TAR file from Connexis
+
+
+
+---
+
+Step 2: File Extraction
+
+The TAR file is uncompressed
+
+XML file is extracted
+
+
+
+---
+
+Step 3: XML Parsing
+
+The XML file is parsed
+
+Relevant fields are extracted
+
+
+
+---
+
+Step 4: Event Identification
+
+The system identifies the corresponding event using:
+
+<additional_field name="mo_event_id" type="string" scope="transaction">
+
+
+---
+
+Explanation
+
+This field contains the actual Event ID from Conserto
+
+It is used to match the response with the correct record in DPW_EVENT
+
+
+
+---
+
+Step 5: Database Lookup
+
+Using the Event ID, the system finds the corresponding event in the database
+
+
+
+---
+
+Step 6: Data Update
+
+The system updates:
+
+Connexis Reference ID
+
+Connexis Transaction ID
+
+Connexis Status
+
+
+
+
+---
+
+4. Key Fields Extracted from XML
+
+Field	Description
+
+ref_id	Connexis reference ID
+tnx_id	Connexis transaction ID
+ack_status	Indicates success or failure
+comment_error_message	Error message from Connexis
+cxt_client_ref	Client reference (optional)
+
+
+
+---
+
+5. ACK and NACK Handling (Critical Logic)
+
+
+---
+
+Definition
+
+Value	Meaning
+
+01	ACK (Successful processing)
+02	NACK (Failed processing)
+
+
+
+---
+
+Correct Handling (After Fix)
+
+The system correctly maps:
+
+XML Value	Database Status
+
+01	ACK
+02	NACK
+
+
+
+---
+
+Previous Issue (Resolved in Build 5)
+
+Earlier:
+
+ack_status = 02 was incorrectly stored as MESSAGE_PUBLISHED
+
+
+This caused:
+
+Incorrect status tracking
+
+No retry for failed transactions
+
+
+
+---
+
+Fix Applied
+
+Proper mapping implemented
+
+NACK is now correctly stored
+
+
+
+---
+
+Impact
+
+Accurate status tracking
+
+Correct retry behavior
+
+Improved reliability
+
+
+
+---
+
+6. Error Handling
+
+
+---
+
+Error Source
+
+Errors can come from:
+
+Invalid XML structure
+
+Missing mandatory fields
+
+Business validation failure in Connexis
+
+
+
+---
+
+Handling Mechanism
+
+Error message is extracted from:
+
+
+<additional_field name="comment_error_message">
+
+Stored in logs
+
+Linked with the event
+
+
+
+---
+
+Purpose
+
+Helps in debugging
+
+Allows users to understand failure reasons
+
+
+
+---
+
+7. History Tracking and Audit
+
+
+---
+
+Table Used
+
+DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY
+
+
+---
+
+What is Stored
+
+Event ID
+
+Status sent to Connexis
+
+Response received (ACK/NACK)
+
+Timestamp
+
+
+
+---
+
+Audit Table
+
+DPW_EXTERNAL_TRACK_AND_TRACE_HISTORY_AUD
+
+
+---
+
+Purpose
+
+Maintain full audit trail
+
+Track changes over time
+
+
+
+---
+
+Importance
+
+Prevent duplicate sending
+
+Provide traceability
+
+Help in debugging issues
+
+
+
+---
+
+8. Retry Mechanism
+
+
+---
+
+When Retry is Allowed
+
+Condition	Action
+
+Status = NACK	Retry allowed
+No response received	Retry allowed
+
+
+
+---
+
+When Retry is Blocked
+
+Condition	Action
+
+Status = ACK	Retry blocked
+Already successfully sent	Retry blocked
+
+
+
+---
+
+How Retry Works
+
+System re-evaluates conditions
+
+XML is regenerated
+
+TAR file is resent
+
+
+
+---
+
+Purpose
+
+Ensure failed transactions are processed successfully
+
+Avoid unnecessary retries
+
+
+
+---
+
+9. Closure Logic
+
+
+---
+
+Objective
+
+Ensure that once a transaction is completed in Conserto, it is also closed in Connexis.
+
+
+---
+
+Trigger
+
+User clicks Completed button
+
+
+
+---
+
+Conditions
+
+Connexis transaction ID exists
+
+Connexis status = ACK
+
+Track & Trace has been sent at least once
+
+
+
+---
+
+Process
+
+1. Generate final XML
+
+
+2. Create TAR file
+
+
+3. Send to Connexis
+
+
+4. Update final status
+
+
+
+
+---
+
+Result
+
+Transaction is fully synchronized
+
+Both systems reflect the same final state
+
+
+
+---
+
+10. Special Scenario – Throwback Handling
+
+
+---
+
+Scenario
+
+User may send event back to a previous stage (e.g., MO)
+
+
+---
+
+Problem
+
+System may resend already sent status
+
+
+
+---
+
+Solution
+
+Before sending:
+
+Check history table
+
+
+
+---
+
+Rule
+
+If status already sent successfully → Do NOT resend
+
+
+
+---
+
+Impact
+
+Prevents duplicate updates
+
+Maintains data consistency
+
+
+
+---
+
+11. End-to-End Response Flow
+
+Send → Connexis Processing → Response Received → XML Parsed → DB Updated → Retry / Closure
+
+
+---
+
+12. Real-World Scenarios
+
+
+---
+
+Scenario 1: Successful Flow
+
+Data sent → ACK received → Process complete
+
+
+
+---
+
+Scenario 2: Failure
+
+Data sent → NACK received → Retry triggered
+
+
+
+---
+
+Scenario 3: No Response
+
+Data sent → No response → Retry
+
+
+
+---
+
+Scenario 4: Duplicate Prevention
+
+Status already sent → No resend
+
+
+
+---
+
+13. Summary
+
+This section explained:
+
+How incoming TAR/XML is processed
+
+How ACK/NACK responses are handled
+
+How errors are logged
+
+How retry logic works
+
+How closure ensures final synchronization
+
+How edge cases like throwback are handled
+
+
+
+---
+
+✅ Part 4 Completed (Deep Level)
+
+Now tu system ka full send + receive + retry + closure flow samajh gaya 💯
+
+
+---
+
+👉 Next bol: “Part 5”
+Final part me main:
+
+Advanced features
+
+Fixes
+
+Edge cases
+
+Final summary
+
+
+👉 sab combine karke complete system understanding dunga 🚀
