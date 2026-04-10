@@ -1,3 +1,40 @@
+onCopy(): void {
+
+  const requests = this.tableData.map(row => {
+
+    const requestKeyValue = REQUEST_PAYLOAD_TEMPLATE.requestKeyValue.map(f => ({
+      key: f.key,
+      value: row[f.key] || f.value
+    }));
+
+    return {
+      id: row.id.toString(),
+      requestKeyValue
+    };
+  });
+
+  const payload = {
+    requests,
+    commonRequestKeyValue: REQUEST_PAYLOAD_TEMPLATE.commonRequestKeyValue.map(f => ({
+      key: f.key,
+      value: f.value
+    }))
+  };
+
+  console.log('FINAL PAYLOAD 🔥', JSON.stringify(payload, null, 2));
+
+  this.requestService.createBulkRequest(
+    '30004',
+    'FR',
+    'tech001',
+    undefined,
+    payload
+  ).subscribe({
+    next: () => this.close(),
+    error: (err) => console.error(err)
+  });
+}
+
 Perfect bhai 🔥 ab maine tera poora flow samajh ke clean + working + legacy-compatible FINAL code bana diya hai
 
 👉 Isme:
