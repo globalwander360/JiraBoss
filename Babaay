@@ -1,0 +1,30 @@
+onCopy(): void {
+  const requestId = this.instructionSheet?.requestId;
+  const branchCode = this.getBranchCodeFromId(requestId);
+  const countryCode = this.getCountryCodeFromId(requestId);
+
+  const commonRequestKeyValue = this.buildCommonRequestKeyValue(this.instructionSheet);
+
+  const requestParameters = this.rows.controls.map((group) => {
+    const row = group.value;
+
+    return {
+      bulkRequest: {
+        id: row.id?.toString(),
+        requestKeyValue: this.buildRequestKeyValue(row, this.selectedFields)
+      },
+      commonRequestKeyValue
+    };
+  });
+
+  this.subscription = this.requestService.createBulkRequest(
+    branchCode,
+    countryCode,
+    'tech001',
+    requestId,
+    requestParameters
+  ).subscribe({
+    next: () => this.close(),
+    error: (err) => console.error(err)
+  });
+}
