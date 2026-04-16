@@ -3,6 +3,43 @@ onCopy(): void {
   const branchCode = this.getBranchCodeFromId(requestId);
   const countryCode = this.getCountryCodeFromId(requestId);
 
+  // ✅ common only once
+  const commonRequestKeyValue = this.buildCommonRequestKeyValue(this.instructionSheet);
+
+  // ✅ only bulkRequest array
+  const bulkRequest = this.rows.controls.map((group) => {
+    const row = group.value;
+
+    return {
+      id: row.id?.toString(),
+      requestKeyValue: this.buildRequestKeyValue(row, this.selectedFields)
+    };
+  });
+
+  // ✅ final payload
+  const payload = {
+    bulkRequest,
+    commonRequestKeyValue
+  };
+
+  this.subscription = this.requestService.createBulkRequest(
+    branchCode,
+    countryCode,
+    'tech001',
+    requestId,
+    payload
+  ).subscribe({
+    next: () => this.close(),
+    error: (err) => console.error(err)
+  });
+}
+
+
+onCopy(): void {
+  const requestId = this.instructionSheet?.requestId;
+  const branchCode = this.getBranchCodeFromId(requestId);
+  const countryCode = this.getCountryCodeFromId(requestId);
+
   const commonRequestKeyValue = this.buildCommonRequestKeyValue(this.instructionSheet);
 
   const requestParameters = this.rows.controls.map((group) => {
