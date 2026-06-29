@@ -1,0 +1,51 @@
+insert into DPW_SCREEN_MAPPING
+    (ID, BRANCH, SECTOR, SCREEN_ID, COUNTRY_CODE, DEFAULT_SCREEN, SCREEN_MODE, EVENT_TYPE)
+values
+    (DPW_SCREEN_MAPPING_ID_SEQ.nextval, '09902', 'ONSHORE Madrid', 9, 'ES', 'N', 'read-only', 'Event');
+
+insert into DPW_SCREEN_MAPPING
+    (ID, BRANCH, SECTOR, SCREEN_ID, COUNTRY_CODE, DEFAULT_SCREEN, SCREEN_MODE, EVENT_TYPE)
+values
+    (DPW_SCREEN_MAPPING_ID_SEQ.nextval, '30004', 'ONSHORE', 9, 'FR', 'N', 'read-only', 'Event');
+
+insert into DPW_SCREEN_MAPPING
+    (ID, BRANCH, SECTOR, SCREEN_ID, COUNTRY_CODE, DEFAULT_SCREEN, SCREEN_MODE, EVENT_TYPE)
+values
+    (DPW_SCREEN_MAPPING_ID_SEQ.nextval, '06402', 'ONSHORE DEDICATED', 9, 'BE', 'N', 'read-only', 'Event');
+
+
+insert into DPW_SCREEN_TAB_MAPPING
+values
+(
+    DPW_SCREEN_TAB_MAPPING_ID_SEQ.nextval,
+    '1,2,3,4,5,6,7,8,9,10',
+    '064020D-099020M-300040-ReadOnly',
+    (select ID from DPW_SCREEN_MAPPING
+      where BRANCH='09902'
+        and SCREEN_ID=9
+        and SCREEN_MODE='read-only')
+);
+
+insert into DPW_SCREEN_TAB_MAPPING
+values
+(
+    DPW_SCREEN_TAB_MAPPING_ID_SEQ.nextval,
+    '1,2,3,4,5,6,7,8,9,10',
+    '064020D-099020M-300040-ReadOnly',
+    (select ID from DPW_SCREEN_MAPPING
+      where BRANCH='30004'
+        and SCREEN_ID=9
+        and SCREEN_MODE='read-only')
+);
+
+insert into DPW_SCREEN_TAB_MAPPING
+values
+(
+    DPW_SCREEN_TAB_MAPPING_ID_SEQ.nextval,
+    '1,2,3,4,5,6,7,8,9,10',
+    '064020D-099020M-300040-ReadOnly',
+    (select ID from DPW_SCREEN_MAPPING
+      where BRANCH='06402'
+        and SCREEN_ID=9
+        and SCREEN_MODE='read-only')
+);
