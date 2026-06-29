@@ -1,0 +1,52 @@
+<changeSet id="IGS-4173-SOMSC-screen-9-mapping" author="harish.semwal" failOnError="false">
+    <validCheckSum>any</validCheckSum>
+
+    <insert tableName="DPW_SCREEN_MAPPING">
+        <column name="BRANCH" value="09902"/>
+        <column name="SECTOR" value="ONSHORE Madrid"/>
+        <column name="SCREEN_ID" valueNumeric="9"/>
+        <column name="COUNTRY_CODE" value="ES"/>
+        <column name="DEFAULT_SCREEN" value="N"/>
+        <column name="SCREEN_MODE" value="read-only"/>
+        <column name="EVENT_TYPE" value="Event"/>
+    </insert>
+
+    <insert tableName="DPW_SCREEN_MAPPING">
+        <column name="BRANCH" value="30004"/>
+        <column name="SECTOR" value="ONSHORE"/>
+        <column name="SCREEN_ID" valueNumeric="9"/>
+        <column name="COUNTRY_CODE" value="FR"/>
+        <column name="DEFAULT_SCREEN" value="N"/>
+        <column name="SCREEN_MODE" value="read-only"/>
+        <column name="EVENT_TYPE" value="Event"/>
+    </insert>
+
+    <insert tableName="DPW_SCREEN_MAPPING">
+        <column name="BRANCH" value="06402"/>
+        <column name="SECTOR" value="ONSHORE DEDICATED"/>
+        <column name="SCREEN_ID" valueNumeric="9"/>
+        <column name="COUNTRY_CODE" value="BE"/>
+        <column name="DEFAULT_SCREEN" value="N"/>
+        <column name="SCREEN_MODE" value="read-only"/>
+        <column name="EVENT_TYPE" value="Event"/>
+    </insert>
+
+</changeSet>
+
+<changeSet id="IGS-4173-DPW_SCREEN_TAB_MAPPING-READONLY" author="harish.semwal" failOnError="false">
+    <validCheckSum>any</validCheckSum>
+
+    <sql>
+        INSERT INTO DPW_SCREEN_TAB_MAPPING (TAB_IDS, GROUP_ID, SCREEN_MAPPING_ID)
+        SELECT
+            '1,2,3,4,5,6,7,8,9,10',
+            '064020D-099020M-300040-ReadOnly',
+            ID
+        FROM DPW_SCREEN_MAPPING
+        WHERE SCREEN_ID = 9
+          AND SCREEN_MODE = 'read-only'
+          AND DEFAULT_SCREEN = 'N'
+          AND EVENT_TYPE = 'Event'
+          AND COUNTRY_CODE IN ('ES', 'FR', 'BE');
+    </sql>
+</changeSet>
